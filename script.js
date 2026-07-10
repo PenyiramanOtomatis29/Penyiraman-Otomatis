@@ -149,7 +149,7 @@ function renderHistory(){
 }
 
 // ==========================================
-// CONFIG CHART.JS (Pembaruan Warna Kontras)
+// CONFIG CHART.JS (Pembaruan Warna Berbeda)
 // ==========================================
 const ctxEl = document.getElementById('chart');
 let chart;
@@ -239,7 +239,6 @@ function renderSidePanel(){
   document.getElementById('valveToggle').checked = a.valve;
 }
 
-// ... (Sisa fungsi pendukung tetap sama)
 function toggleValve(){
   const checked = document.getElementById('valveToggle').checked;
   areas[selectedArea].valve = checked;
@@ -267,6 +266,9 @@ window.toggleValve = toggleValve;
 window.resetSystem = resetSystem;
 window.renderSidePanel = renderSidePanel;
 
+// ==========================================
+// LISTEN DATA DARI FIREBASE SECARA REALTIME
+// ==========================================
 onValue(ref(db, '/'), (snapshot) => {
   const data = snapshot.val();
   if (data) {
