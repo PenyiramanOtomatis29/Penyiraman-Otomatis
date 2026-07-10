@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Watering System</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="layout">
+  <div class="main" id="mainCol">
+    <header>
+      <div class="brand">
+        <div class="logo">💧</div>
+        <div>
+          <h1>SMART WATERING SYSTEM</h1>
+          <p>Sistem Penyiraman Tanah Otomatis</p>
+        </div>
+      </div>
+      <div class="status">
+        <div><span class="dot"></span>Status : <b>Online (Cloud)</b></div>
+        <div>🕒 <span id="clock"></span></div>
+      </div>
+    </header>
+
+    <div class="content">
+      <div class="top-card">
+        <div class="pump-icon">🚿</div>
+        <div class="pump-status">
+          <div class="label">STATUS POMPA</div>
+          <div class="value" id="pumpValue">OFF</div>
+          <div class="sub" id="pumpSub">Otomatis (Mengikuti Valve)</div>
+        </div>
+
+        <div class="mode-block">
+          <div class="mode-label">MODE SISTEM</div>
+          <div class="mode-btns">
+            <button class="btn btn-auto" id="btnAuto" onclick="setMode('auto')">⟲ MODE AUTO</button>
+            <button class="btn btn-manual" id="btnManual" onclick="setMode('manual')">👆 MODE MANUAL</button>
+            <button class="btn btn-reset" onclick="resetSystem()">↻ RESET</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="areas" id="areaGrid"></div>
+
+      <div class="bottom-grid">
+        <div class="panel">
+          <h3>GRAFIK KELEMBAPAN TANAH (%)</h3>
+          <div class="chart-wrap"><canvas id="chart"></canvas></div>
+        </div>
+        <div>
+          <div class="panel" style="margin-bottom:16px;">
+            <h3>RATA-RATA KELEMBAPAN</h3>
+            <div class="avg-value" id="avgValue">--%</div>
+            <div class="avg-cat">Kategori : <b id="avgCat">-</b></div>
+          </div>
+          <div class="panel">
+            <h3>RINGKASAN</h3>
+            <div class="summary-row"><span>🌱 Mode Sistem</span><b id="sumMode">AUTO</b></div>
+            <div class="summary-row"><span>🚿 Valve Aktif</span><b id="sumValve">0</b></div>
+            <div class="summary-row"><span>🕒 Terakhir Update</span><b id="sumTime">-</b></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:16px;">
+        <button class="lihat-semua">LIHAT SEMUA</button>
+        <h3>RIWAYAT DATA</h3>
+        <table>
+          <thead><tr><th>Waktu</th><th>Area</th><th>ADC</th><th>Kelembapan (%)</th><th>Status Tanah</th><th>Valve</th><th>Mode</th></tr></thead>
+          <tbody id="historyBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="side-panel" id="sidePanel">
+    <div class="side-inner">
+      <div class="side-header">
+        <h2>MODE MANUAL</h2>
+        <button class="close-btn" onclick="setMode('auto')">✕</button>
+      </div>
+      <div class="info-box">ℹ️ Pilih area/valve yang ingin dikontrol secara manual. Sensor tetap berjalan dan data terus diperbarui.</div>
+
+      <div class="field-label">PILIH AREA / VALVE</div>
+      <select id="areaSelect" onchange="renderSidePanel()"></select>
+
+      <div class="field-label">DATA AREA TERPILIH</div>
+      <div class="data-box">
+        <div class="data-row"><span>ADC SENSOR</span><b id="sideAdc">-</b></div>
+        <div class="data-row"><span>KELEMBAPAN</span><b id="sideHum">-</b></div>
+        <div class="data-row"><span>STATUS TANAH</span><span id="sideSoil">-</span></div>
+        <div class="data-row"><span>STATUS VALVE</span><b id="sideValve">-</b></div>
+      </div>
+
+      <div class="field-label">KONTROL VALVE</div>
+      <div class="toggle-row">
+        <span>OFF</span>
+        <label class="switch">
+          <input type="checkbox" id="valveToggle" onchange="toggleValve()">
+          <span class="slider"></span>
+        </label>
+        <span>ON</span>
+      </div>
+
+      <div class="note-box">✅ Catatan: Valve yang dibuka akan menyalakan pompa secara otomatis. Pompa akan mati jika semua valve tertutup.</div>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="script.js"></script>
+</body>
+</html>
