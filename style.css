@@ -4,13 +4,13 @@
   --border:#e3e7ec;
   --text:#1f2937;
   --muted:#6b7280;
-  --green:#16a34a;
+  --green:#16a34a;    /* Untuk BASAH */
   --green-bg:#dcfce7;
-  --orange:#f59e0b;
+  --orange:#f59e0b;   /* Untuk LEMBAB */
   --orange-bg:#fef3c7;
   --blue:#2563eb;
   --blue-bg:#dbeafe;
-  --red:#dc2626;
+  --red:#dc2626;      /* Untuk KERING */
   --red-bg:#fee2e2;
   --header:#0b1220;
 }
@@ -91,9 +91,13 @@ header{
 .badge{
   display:inline-block; padding:3px 10px; border-radius:6px; font-size:12px; font-weight:600; margin-top:4px;
 }
-.b-kering{background:var(--green-bg); color:var(--green);}
-.b-lembap{background:var(--orange-bg); color:var(--orange);}
-.b-basah{background:var(--blue-bg); color:var(--blue);}
+
+/* --- PERBAIKAN WARNA STATUS agarIntuitif (Kering=Merah, Basah=Biru/Hijau) --- */
+.b-kering{background:var(--red-bg); color:var(--red);}   /* Merah */
+.b-lembap{background:var(--orange-bg); color:var(--orange);} /* Oranye */
+.b-basah{background:var(--blue-bg); color:var(--blue);}  /* Biru (atau ganti Hijau tema BASAH) */
+/* ----------------------------------------------------------------------------- */
+
 .valve-row{margin-top:10px; font-size:12px; color:var(--muted);}
 .valve-status{font-weight:700; margin-left:4px;}
 .v-open{color:var(--green);}
