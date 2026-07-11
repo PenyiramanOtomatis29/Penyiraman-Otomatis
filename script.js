@@ -7,7 +7,7 @@ import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/fireb
 
 // Konfigurasi Firebase (Hanya Kredensial, Rules Tidak Berubah)
 const firebaseConfig = {
-  apiKey: "AIzaSyDhoFPppidsW_oxPHbCteZO2_SPdLSnwtA", // Ganti dengan API Key Anda
+  apiKey: "YOUR_CORRECT_API_KEY_HERE", // Ganti dengan API Key Anda
   authDomain: "penyiraman-otomatis-2728b.firebaseapp.com",
   databaseURL: "https://penyiraman-otomatis-2728b-default-rtdb.asia-southeast1.firebasedatabase.app", // Ganti dengan URL RTDB Anda
   projectId: "penyiraman-otomatis-2728b",
@@ -265,3 +265,94 @@ function setMode(m){
   
   // Buka/Tutup Panel Samping Mode Manual
   document.getElementById('sidePanel').classList.toggle('open', m==='manual'); //
+  
+  // Kirim perintah mode baru ke Cloud Firebase
+  sendFirebaseCommand({ command: "SET_MODE", value: m, areaIndex: -1 }); //
+  
+  // Render Ulang
+  if(m==='manual') renderSidePanel(); //
+  renderAreas(); //
+}
+
+// Merender Ulang Kontrol & Data di Panel Samping Mode Manual
+function renderSidePanel(){
+  const sel = document.getElementById('areaSelect');
+  // Mengisi Area Pilih Kontrol JIKA Kosong
+  if(sel && sel.options.length === 0){
+    areas.forEach((a,i)=>{
+      const opt = document.createElement('option');
+      opt.value = i; opt.textContent = `Valve Area ${i+1}`; //
+      sel.appendChild(opt); //
+    });
+  }
+  // Ambil area terpilih dari dropdown
+  if(sel) selectedArea = parseInt(sel.value || selectedArea); //
+  
+  // Ambil Data Lokal
+  const a = areas[selectedArea];
+  const s = soilStatus(a.status); //
+  
+  // Update Tampilan Data di Panel
+  document.getElementById('sideAdc').textContent = a.adc; //
+  document.getElementById('sideHum').textContent = a.hum + '%'; //
+  document.getElementById('sideSoil').innerHTML = `<span class="badge ${s.cls}">${s.label}</span>`; //
+  document.getElementById('sideValve').textContent = a.valve ? 'TERBUKA' : 'TERTUTUP'; //
+  document.getElementById('sideValve').style.color = a.valve ? 'var(--green)' : 'var(--red)'; //
+  
+  // Update Status Switch Tombol Toggle
+  document.getElementById('valveToggle').checked = a.valve; //
+}
+
+// Mengubah Status Valve Lewat Tombol Toggle di Mode Manual
+function toggleValve(){
+  const checked = document.getElementById('valveToggle').checked; //
+  // Update status valve lokal
+  areas[selectedArea].valve = checked; //
+  // Kirim perintah toggle ke Firebase
+  sendFirebaseCommand({ command: "TOGGLE_VALVE", areaIndex: selectedArea, value: checked ? "true" : "false" }); //
+  // Render Ulang
+  renderSidePanel(); //
+  renderAreas(); //
+}
+
+// Reset Grafik, Riwayat, dan Mode ke AUTO Lokal
+function resetSystem(){
+  // Perintah reset dikirim lewat Cloud Firebase
+  sendFirebaseCommand({ command: "RESET_SYSTEM", value: "restart", areaIndex: -1 }); //
+  
+  // Menghapus data lokal sementara
+  history = [];
+  chartData = { labels:[], series:[[],[],[],[]] };
+  if(chart) {
+    chart.data.labels = []; 
+    chart.data.datasets.forEach(d=>d.data=[]); 
+    chart.update(); //
+  }
+  
+  // Kembalikan ke Mode AUTO secara lokal & kirim perintah ke Firebase
+  setMode('auto'); //
+  renderHistory(); //
+  alert("Grafik Lokal Reset. Perintah reset dikirim lewat Cloud Firebase.");
+}
+
+// Mengekspos Fungsi ke Global Agar Bisa Dipanggil di index.html
+window.setMode = setMode;
+window.toggleValve = toggleValve;
+window.resetSystem = resetSystem;
+window.renderSidePanel = renderSidePanel;
+
+// ==========================================
+// LISTEN DATA DARI FIREBASE SECARA REALTIME
+// ==========================================
+// Mendengarkan Setiap Perubahan Data di Root Firebase ("/")
+onValue(ref(db, '/'), (snapshot) => {
+  const data = snapshot.val();
+  if (data) {
+    // Masukkan data JSON ke fungsi handler
+    handleRealtimeDataFromFirebase(data); //
+  }
+});
+
+// Render Awal Secara Lokal Sebelum Data Firebase Masuk
+renderAreas();
+renderHistory();
