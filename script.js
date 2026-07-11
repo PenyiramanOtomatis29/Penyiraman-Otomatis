@@ -7,7 +7,7 @@ import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/fireb
 
 // Konfigurasi Firebase (Hanya Kredensial, Rules Tidak Berubah)
 const firebaseConfig = {
-  apiKey: "YOUR_CORRECT_API_KEY_HERE", // Ganti dengan API Key Anda
+  apiKey: "AIzaSyDhoFPppidsW_oxPHbCteZO2_SPdLSnwtA", // Ganti dengan API Key Anda
   authDomain: "penyiraman-otomatis-2728b.firebaseapp.com",
   databaseURL: "https://penyiraman-otomatis-2728b-default-rtdb.asia-southeast1.firebasedatabase.app", // Ganti dengan URL RTDB Anda
   projectId: "penyiraman-otomatis-2728b",
