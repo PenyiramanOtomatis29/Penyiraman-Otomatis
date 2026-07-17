@@ -1,4 +1,3 @@
-cat > /mnt/user-data/outputs/script.js << 'ENDOFFILE'
 // script.js — Smart Watering System Dashboard
 // Sinkron dengan Arduino (Firebase_ESP_Client)
 // Threshold: KERING < 45%, BASAH >= 70%, LEMBAB 45-69%
@@ -522,4 +521,4 @@ onValue(ref(db, '/'), (snapshot) => {
 
 renderAreas();
 renderHistory();
-ENDOFFILE
+
