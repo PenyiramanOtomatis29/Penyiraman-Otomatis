@@ -6,6 +6,7 @@
 <title>Monitoring Kelembapan</title>
 <link rel="stylesheet" href="style.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 <div class="layout">
@@ -50,9 +51,9 @@
         <div class="mode-block">
           <div class="mode-label">MODE SISTEM</div>
           <div class="mode-btns">
-            <button class="btn btn-auto" id="btnAuto" onclick="setMode('auto')">⟲ MODE AUTO</button>
+            <button class="btn btn-auto" id="btnAuto" onclick="setMode('auto')">⏻ MODE AUTO</button>
             <button class="btn btn-manual" id="btnManual" onclick="setMode('manual')"> MODE MANUAL</button>
-            <button class="btn btn-reset" onclick="resetSystem()">↻ RESET</button>
+            <button class="btn btn-reset" onclick="resetSystem()">⟳ RESET</button>
           </div>
         </div>
       </div>
@@ -72,7 +73,7 @@
           </div>
           <div class="panel">
             <h3>RINGKASAN</h3>
-            <div class="summary-row"><span>🌱 Mode Sistem</span><b id="sumMode">AUTO</b></div>
+            <div class="summary-row"><span>⏻ Mode Sistem</span><b id="sumMode">AUTO</b></div>
             <div class="summary-row"><span>🚿 Valve Aktif</span><b id="sumValve">0</b></div>
             <div class="summary-row"><span>🕒 Terakhir Update</span><b id="sumTime">-</b></div>
           </div>
@@ -80,7 +81,8 @@
       </div>
 
       <div class="panel" style="margin-top:16px;">
-        <button class="lihat-semua">LIHAT SEMUA</button>
+        <button class="lihat-semua" onclick="exportHistoryToExcel()">⬇️ EXPORT EXCEL</button>
+        <button class="lihat-semua" onclick="openHistoryModal()">LIHAT SEMUA</button>
         <h3>RIWAYAT DATA</h3>
         <table>
           <thead><tr><th>Waktu</th><th>Area</th><th>ADC</th><th>Kelembapan (%)</th><th>Status Tanah</th><th>Valve</th><th>Mode</th></tr></thead>
@@ -123,6 +125,21 @@
     </div>
   </div>
 </div>
+
+  <div class="modal-overlay" id="historyModal">
+    <div class="modal-box">
+      <div class="side-header" style="padding:18px 22px; border-bottom:1px solid var(--border); margin:0;">
+        <h2 style="font-size:16px;">RIWAYAT DATA LENGKAP</h2>
+        <button class="close-btn" onclick="closeHistoryModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <table>
+          <thead><tr><th>Waktu</th><th>Area</th><th>ADC</th><th>Kelembapan (%)</th><th>Status Tanah</th><th>Valve</th><th>Mode</th></tr></thead>
+          <tbody id="historyModalBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 
 <script type="module" src="script.js"></script>
 </body>
