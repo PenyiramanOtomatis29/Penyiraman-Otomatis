@@ -521,4 +521,3 @@ onValue(ref(db, '/'), (snapshot) => {
 
 renderAreas();
 renderHistory();
-
