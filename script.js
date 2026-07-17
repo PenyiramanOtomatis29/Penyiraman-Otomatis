@@ -26,7 +26,8 @@ const db = getDatabase(app);
 // ==========================================
 let mode = 'auto';              // Default mode lokal
 let selectedArea = 0;           // Area yang dipilih untuk Mode Manual
-let history = [];                // Data riwayat sementara
+let history = [];                // Data riwayat sementara (sama seperti kode awal)
+let historyModalOpen = false;    // Status modal "Lihat Semua"
 
 // Struktur Data Lokal untuk 4 Area
 let areas = [
@@ -37,29 +38,27 @@ let areas = [
 ];
 
 // Data Struktur untuk Grafik Kelembapan (Range 0-100%)
+// PENTING: objek & array ini TIDAK BOLEH diganti dengan objek baru (lihat resetSystem),
+// karena Chart.js menyimpan REFERENSI ke array chartData.series[i] saat chart dibuat.
 let chartData = { labels:[], series:[[],[],[],[]] };
 
 // ==========================================
 // FUNGSI UTILITAS & UI
 // ==========================================
-// Memetakan Teks Status dari ESP ke Teks & Kelas CSS yang Benar
 function soilStatus(statusText){
-  // WARNA DIPERBAIKI MELALUI CSS (Basah=Biru/Hijau tema, Kering=Merah)
-  if(statusText === 'KERING') return {label:'Kering', cls:'b-kering'}; // Menggunakan kelas CSS warna merah
-  if(statusText === 'LEMBAB') return {label:'Lembap', cls:'b-lembap'}; // Menggunakan kelas CSS warna oranye
-  if(statusText === 'BASAH') return {label:'Basah', cls:'b-basah'};  // Menggunakan kelas CSS warna biru
-  return {label:'Error', cls:'b-kering'}; // Default ke warna merah
+  if(statusText === 'KERING') return {label:'Kering', cls:'b-kering'};
+  if(statusText === 'LEMBAB') return {label:'Lembap', cls:'b-lembap'};
+  if(statusText === 'BASAH') return {label:'Basah', cls:'b-basah'};
+  return {label:'Error', cls:'b-kering'};
 }
 
-// Format Waktu Lokal
 function fmtTime(d){
-  return d.toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit', second:'2-digit'}); //
+  return d.toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
 }
 
-// Update Jam Realtime di Header
 function updateClock(){
   const clockEl = document.getElementById('clock');
-  if(clockEl) clockEl.textContent = fmtTime(new Date()); //
+  if(clockEl) clockEl.textContent = fmtTime(new Date());
 }
 setInterval(updateClock, 1000);
 updateClock();
@@ -67,46 +66,39 @@ updateClock();
 // ==========================================
 // LOGIKA PEMROSESAN DATA DARI FIREBASE
 // ==========================================
-// Menangani Paket Data JSON yang Masuk Secara Realtime
 function handleRealtimeDataFromFirebase(data) {
   // A. Sinkronisasi Mode (AUTO/MANUAL)
   if (data.mode) {
-    mode = (data.mode === 'AUTO') ? 'auto' : 'manual'; //
+    mode = (data.mode === 'AUTO') ? 'auto' : 'manual';
     const btnAuto = document.getElementById('btnAuto');
     const btnManual = document.getElementById('btnManual');
     const sidePanel = document.getElementById('sidePanel');
-    
-    // Perbarui Tampilan Tombol Mode
-    if(btnAuto) btnAuto.classList.toggle('inactive', mode !== 'auto'); //
-    if(btnManual) btnManual.classList.toggle('active', mode === 'manual'); //
-    
-    // Buka/Tutup Panel Samping untuk Mode Manual
-    if(sidePanel) sidePanel.classList.toggle('open', mode === 'manual'); //
+
+    if(btnAuto) btnAuto.classList.toggle('inactive', mode !== 'auto');
+    if(btnManual) btnManual.classList.toggle('active', mode === 'manual');
+    if(sidePanel) sidePanel.classList.toggle('open', mode === 'manual');
   }
 
   // B. Sinkronisasi Data Area 1 - 4
   for (let i = 0; i < 4; i++) {
-    const areaKey = `area_${i+1}`; //
+    const areaKey = `area_${i+1}`;
     if (data[areaKey]) {
-      // Perbarui Data Lokal
-      areas[i].hum = data[areaKey].humidity !== undefined ? data[areaKey].humidity : areas[i].hum; //
-      areas[i].valve = data[areaKey].valve !== undefined ? data[areaKey].valve : areas[i].valve; //
-      areas[i].status = data[areaKey].status || areas[i].status; //
-      areas[i].adc = data[areaKey].adc !== undefined ? data[areaKey].adc : areas[i].adc; //
+      areas[i].hum = data[areaKey].humidity !== undefined ? data[areaKey].humidity : areas[i].hum;
+      areas[i].valve = data[areaKey].valve !== undefined ? data[areaKey].valve : areas[i].valve;
+      areas[i].status = data[areaKey].status || areas[i].status;
+      areas[i].adc = data[areaKey].adc !== undefined ? data[areaKey].adc : areas[i].adc;
     }
   }
 
-  // C. Update Riwayat & Grafik (Menambahkan Titik Data Baru)
-  const t = fmtTime(new Date()); //
-  // Tambah riwayat (ambil area terpilih saat ini sebagai representasi)
-  history.unshift({time:t, area:areas[selectedArea].name, adc:areas[selectedArea].adc, hum:areas[selectedArea].hum, valve:areas[selectedArea].valve, mode:mode.toUpperCase()}); //
+  // C. Update Riwayat & Grafik (Menambahkan Titik Data Baru) — persis seperti kode awal
+  const t = fmtTime(new Date());
+  history.unshift({time:t, area:areas[selectedArea].name, adc:areas[selectedArea].adc, hum:areas[selectedArea].hum, valve:areas[selectedArea].valve, mode:mode.toUpperCase()});
 
   // D. Render Ulang Semua Komponen Dashboard
-  renderAreas(); //
-  renderHistory(); //
-  pushChartPoint(); //
-  // Jika dalam Mode Manual, render panel samping
-  if(mode === 'manual') renderSidePanel(); //
+  renderAreas();
+  renderHistory();
+  pushChartPoint();
+  if(mode === 'manual') renderSidePanel();
 }
 
 // Merender Kartu Area Secara Realtime
@@ -114,22 +106,19 @@ function renderAreas(){
   const grid = document.getElementById('areaGrid');
   if(!grid) return;
   grid.innerHTML = '';
-  
-  // Buat Kartu untuk Setiap Area
+
   areas.forEach((a, i)=>{
-    const s = soilStatus(a.status); //
+    const s = soilStatus(a.status);
     const card = document.createElement('div');
-    card.className = 'area-card' + (mode==='manual' && selectedArea===i ? ' selected' : ''); //
+    card.className = 'area-card' + (mode==='manual' && selectedArea===i ? ' selected' : '');
     card.onclick = () => {
-      // Dalam Mode Manual, kartu bisa diklik untuk memilih area kontrol
-      if(mode==='manual'){ 
-        selectedArea = i; //
-        document.getElementById('areaSelect').value = i; //
-        renderSidePanel(); //
-        renderAreas(); // Render ulang kartu untuk update efek 'selected'
+      if(mode==='manual'){
+        selectedArea = i;
+        document.getElementById('areaSelect').value = i;
+        renderSidePanel();
+        renderAreas();
       }
     };
-    // Struktur HTML Kartu Area
     card.innerHTML = `
       <div class="area-title">🌿 ${a.name.toUpperCase()}</div>
       <div class="area-sub">(${a.sensor})</div>
@@ -141,57 +130,82 @@ function renderAreas(){
       <span class="badge ${s.cls}">${s.label}</span>
       <div class="valve-row">STATUS VALVE
         <span class="valve-status ${a.valve?'v-open':'v-closed'}">${a.valve?'🌿 TERBUKA':'🚫 TERTUTUP'}</span>
-      </div>`; //
-    grid.appendChild(card); //
+      </div>`;
+    grid.appendChild(card);
   });
 
-  // --- PERBAIKAN LOGIKA RATA-RATA ---
-  // Menghitung Rata-Rata Kelembapan Seluruh Area (Akurat)
-  const totalHum = areas.reduce((s, a) => s + a.hum, 0); //
-  const avg = Math.round(totalHum / areas.length); //
-  document.getElementById('avgValue').textContent = avg + '%'; //
+  // Rata-rata kelembapan seluruh area
+  const totalHum = areas.reduce((s, a) => s + a.hum, 0);
+  const avg = Math.round(totalHum / areas.length);
+  document.getElementById('avgValue').textContent = avg + '%';
 
-  // Hitung Kategori Rata-Rata yang Benar
-  let avgCatText = 'LEMBAB'; //
-  if (avg <= 30) avgCatText = 'KERING'; //
-  else if (avg >= 60) avgCatText = 'BASAH'; //
-  
-  // Tampilkan dengan Warna yang Benar Sesuai CSS
-  document.getElementById('avgCat').textContent = soilStatus(avgCatText).label.toUpperCase(); //
-  // ----------------------------------
+  let avgCatText = 'LEMBAB';
+  if (avg <= 30) avgCatText = 'KERING';
+  else if (avg >= 60) avgCatText = 'BASAH';
 
-  // Update Ringkasan Dashboard
-  document.getElementById('sumMode').textContent = mode.toUpperCase(); //
-  document.getElementById('sumValve').textContent = areas.filter(a=>a.valve).length; //
-  document.getElementById('sumTime').textContent = fmtTime(new Date()); //
+  document.getElementById('avgCat').textContent = soilStatus(avgCatText).label.toUpperCase();
 
-  // Update Status Pompa Utama
-  const pumpOn = areas.some(a=>a.valve); // Pompa hidup jika ada salah satu valve terbuka
-  document.getElementById('pumpValue').textContent = pumpOn ? 'ON' : 'OFF'; //
-  document.getElementById('pumpValue').style.color = pumpOn ? 'var(--green)' : 'var(--red)'; //
-  document.getElementById('pumpSub').textContent = mode==='auto' ? 'Otomatis (Mengikuti Valve)' : 'Manual (Mengikuti Kontrol)'; //
+  document.getElementById('sumMode').textContent = mode.toUpperCase();
+  document.getElementById('sumValve').textContent = areas.filter(a=>a.valve).length;
+  document.getElementById('sumTime').textContent = fmtTime(new Date());
+
+  const pumpOn = areas.some(a=>a.valve);
+  document.getElementById('pumpValue').textContent = pumpOn ? 'ON' : 'OFF';
+  document.getElementById('pumpValue').style.color = pumpOn ? 'var(--green)' : 'var(--red)';
+  document.getElementById('pumpSub').textContent = mode==='auto' ? 'Otomatis (Mengikuti Valve)' : 'Manual (Mengikuti Kontrol)';
 }
 
-// Merender Tabel Riwayat Data Realtime
+// Merender Tabel Riwayat Data Realtime — persis seperti kode awal (8 baris terakhir)
 function renderHistory(){
   const body = document.getElementById('historyBody');
   if(!body) return;
   body.innerHTML = '';
-  // Tampilkan 8 Data Terakhir
   history.slice(0,8).forEach(h=>{
-    // Tampilkan warna status sesuai kelembapan pada baris data tersebut
-    const s = soilStatus(h.hum < 30 ? 'KERING' : h.hum <= 60 ? 'LEMBAB' : 'BASAH'); //
+    const s = soilStatus(h.hum < 30 ? 'KERING' : h.hum <= 60 ? 'LEMBAB' : 'BASAH');
     const tr = document.createElement('tr');
     tr.innerHTML = `<td>${h.time}</td><td>${h.area}</td><td>${h.adc}</td><td>${h.hum}%</td>
       <td><span class="badge ${s.cls}">${s.label}</span></td>
       <td><span class="valve-status ${h.valve?'v-open':'v-closed'}">${h.valve?'TERBUKA':'TERTUTUP'}</span></td>
-      <td>${h.mode}</td>`; //
-    body.appendChild(tr); //
+      <td>${h.mode}</td>`;
+    body.appendChild(tr);
+  });
+
+  // Kalau modal "Lihat Semua" sedang terbuka, ikut update live juga
+  renderHistoryModal();
+}
+
+// Merender SELURUH riwayat di dalam modal "Lihat Semua" (live-update selama modal terbuka)
+function renderHistoryModal(){
+  if(!historyModalOpen) return;
+  const body = document.getElementById('historyModalBody');
+  if(!body) return;
+  body.innerHTML = '';
+  history.forEach(h=>{
+    const s = soilStatus(h.hum < 30 ? 'KERING' : h.hum <= 60 ? 'LEMBAB' : 'BASAH');
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${h.time}</td><td>${h.area}</td><td>${h.adc}</td><td>${h.hum}%</td>
+      <td><span class="badge ${s.cls}">${s.label}</span></td>
+      <td><span class="valve-status ${h.valve?'v-open':'v-closed'}">${h.valve?'TERBUKA':'TERTUTUP'}</span></td>
+      <td>${h.mode}</td>`;
+    body.appendChild(tr);
   });
 }
 
+// Buka / Tutup modal "Lihat Semua"
+function openHistoryModal(){
+  historyModalOpen = true;
+  const modal = document.getElementById('historyModal');
+  if(modal) modal.classList.add('open');
+  renderHistoryModal();
+}
+function closeHistoryModal(){
+  historyModalOpen = false;
+  const modal = document.getElementById('historyModal');
+  if(modal) modal.classList.remove('open');
+}
+
 // ==========================================
-// CONFIG CHART.JS (Pembaruan Warna Grafik Berbeda)
+// CONFIG CHART.JS
 // ==========================================
 const ctxEl = document.getElementById('chart');
 let chart;
@@ -201,7 +215,6 @@ if(ctxEl) {
     type:'line',
     data:{
       labels: chartData.labels,
-      // Warna Grafik Berbeda untuk 4 Area
       datasets:[
         {label:'Area 1 (Sensor 1)', data:chartData.series[0], borderColor:'#16a34a', backgroundColor:'rgba(22, 163, 74, 0.1)', tension:.3, pointRadius:3, fill:false},
         {label:'Area 2 (Sensor 2)', data:chartData.series[1], borderColor:'#f59e0b', backgroundColor:'rgba(245, 158, 11, 0.1)', tension:.3, pointRadius:3, fill:false},
@@ -220,119 +233,130 @@ if(ctxEl) {
 // Menambahkan Titik Data Baru ke Grafik
 function pushChartPoint(){
   if(!chart) return;
-  const label = fmtTime(new Date()); //
-  chartData.labels.push(label); //
-  areas.forEach((a,i)=> chartData.series[i].push(a.hum)); //
-  // Batasi Grafik Hanya Menampilkan 10 Titik Data
+  const label = fmtTime(new Date());
+  chartData.labels.push(label);
+  areas.forEach((a,i)=> chartData.series[i].push(a.hum));
   if(chartData.labels.length > 10){
     chartData.labels.shift();
     chartData.series.forEach(s=>s.shift());
   }
-  chart.data.labels = chartData.labels; //
-  chart.update(); //
+  chart.update();
 }
 
 // ==========================================
 // KONTROL AKSI & KIRIM KE FIREBASE
 // ==========================================
-// Mengirim Perintah Update Data ke Root Firebase secara Realtime
 function sendFirebaseCommand(cmdObj) {
   const dbRef = ref(db, '/');
-  
+
   if (cmdObj.command === "SET_MODE") {
-    // Update data mode di root: "/" { "mode": "AUTO"/"MANUAL" }
-    update(dbRef, { mode: cmdObj.value.toUpperCase() }); //
-  } 
+    update(dbRef, { mode: cmdObj.value.toUpperCase() });
+  }
   else if (cmdObj.command === "TOGGLE_VALVE") {
-    // Update data status valve di path spesifik: "/area_X" { "valve": true/false }
-    const areaKey = `area_${cmdObj.areaIndex + 1}`; //
+    const areaKey = `area_${cmdObj.areaIndex + 1}`;
     const updates = {};
-    updates[`${areaKey}/valve`] = cmdObj.value === "true"; //
-    update(dbRef, updates); //
+    updates[`${areaKey}/valve`] = cmdObj.value === "true";
+    update(dbRef, updates);
   }
   else if (cmdObj.command === "RESET_SYSTEM") {
-    // Perintah reset (sesuaikan logikanya jika ESP32 mendengarkan path tertentu)
-    update(dbRef, { command_trigger: "RESET" }); //
+    update(dbRef, { command_trigger: "RESET" });
   }
 }
 
-// Mengubah Mode Sistem Lokal & Update Tampilan
 function setMode(m){
   mode = m;
-  // Perbarui Warna Tombol
-  document.getElementById('btnAuto').classList.toggle('inactive', m!=='auto'); //
-  document.getElementById('btnManual').classList.toggle('active', m==='manual'); //
-  
-  // Buka/Tutup Panel Samping Mode Manual
-  document.getElementById('sidePanel').classList.toggle('open', m==='manual'); //
-  
-  // Kirim perintah mode baru ke Cloud Firebase
-  sendFirebaseCommand({ command: "SET_MODE", value: m, areaIndex: -1 }); //
-  
-  // Render Ulang
-  if(m==='manual') renderSidePanel(); //
-  renderAreas(); //
+  document.getElementById('btnAuto').classList.toggle('inactive', m!=='auto');
+  document.getElementById('btnManual').classList.toggle('active', m==='manual');
+  document.getElementById('sidePanel').classList.toggle('open', m==='manual');
+  sendFirebaseCommand({ command: "SET_MODE", value: m, areaIndex: -1 });
+  if(m==='manual') renderSidePanel();
+  renderAreas();
 }
 
-// Merender Ulang Kontrol & Data di Panel Samping Mode Manual
 function renderSidePanel(){
   const sel = document.getElementById('areaSelect');
-  // Mengisi Area Pilih Kontrol JIKA Kosong
   if(sel && sel.options.length === 0){
     areas.forEach((a,i)=>{
       const opt = document.createElement('option');
-      opt.value = i; opt.textContent = `Valve Area ${i+1}`; //
-      sel.appendChild(opt); //
+      opt.value = i; opt.textContent = `Valve Area ${i+1}`;
+      sel.appendChild(opt);
     });
   }
-  // Ambil area terpilih dari dropdown
-  if(sel) selectedArea = parseInt(sel.value || selectedArea); //
-  
-  // Ambil Data Lokal
+  if(sel) selectedArea = parseInt(sel.value || selectedArea);
+
   const a = areas[selectedArea];
-  const s = soilStatus(a.status); //
-  
-  // Update Tampilan Data di Panel
-  document.getElementById('sideAdc').textContent = a.adc; //
-  document.getElementById('sideHum').textContent = a.hum + '%'; //
-  document.getElementById('sideSoil').innerHTML = `<span class="badge ${s.cls}">${s.label}</span>`; //
-  document.getElementById('sideValve').textContent = a.valve ? 'TERBUKA' : 'TERTUTUP'; //
-  document.getElementById('sideValve').style.color = a.valve ? 'var(--green)' : 'var(--red)'; //
-  
-  // Update Status Switch Tombol Toggle
-  document.getElementById('valveToggle').checked = a.valve; //
+  const s = soilStatus(a.status);
+
+  document.getElementById('sideAdc').textContent = a.adc;
+  document.getElementById('sideHum').textContent = a.hum + '%';
+  document.getElementById('sideSoil').innerHTML = `<span class="badge ${s.cls}">${s.label}</span>`;
+  document.getElementById('sideValve').textContent = a.valve ? 'TERBUKA' : 'TERTUTUP';
+  document.getElementById('sideValve').style.color = a.valve ? 'var(--green)' : 'var(--red)';
+  document.getElementById('valveToggle').checked = a.valve;
 }
 
-// Mengubah Status Valve Lewat Tombol Toggle di Mode Manual
 function toggleValve(){
-  const checked = document.getElementById('valveToggle').checked; //
-  // Update status valve lokal
-  areas[selectedArea].valve = checked; //
-  // Kirim perintah toggle ke Firebase
-  sendFirebaseCommand({ command: "TOGGLE_VALVE", areaIndex: selectedArea, value: checked ? "true" : "false" }); //
-  // Render Ulang
-  renderSidePanel(); //
-  renderAreas(); //
+  const checked = document.getElementById('valveToggle').checked;
+  areas[selectedArea].valve = checked;
+  sendFirebaseCommand({ command: "TOGGLE_VALVE", areaIndex: selectedArea, value: checked ? "true" : "false" });
+  renderSidePanel();
+  renderAreas();
 }
 
 // Reset Grafik, Riwayat, dan Mode ke AUTO Lokal
 function resetSystem(){
-  // Perintah reset dikirim lewat Cloud Firebase
-  sendFirebaseCommand({ command: "RESET_SYSTEM", value: "restart", areaIndex: -1 }); //
-  
+  sendFirebaseCommand({ command: "RESET_SYSTEM", value: "restart", areaIndex: -1 });
+
   // Menghapus data lokal sementara
   history = [];
-  chartData = { labels:[], series:[[],[],[],[]] };
+
+  // FIX PENTING: kosongkan array DI TEMPAT (length = 0), JANGAN buat objek/array baru.
+  // Chart.js menyimpan referensi ke chartData.series[i] saat chart dibuat pertama kali.
+  // Kalau kita ganti dengan array baru di sini, chart akan "putus koneksi" dan
+  // berhenti ter-update selamanya walau data sensor terus masuk dari Firebase.
+  chartData.labels.length = 0;
+  chartData.series.forEach(s => s.length = 0);
   if(chart) {
-    chart.data.labels = []; 
-    chart.data.datasets.forEach(d=>d.data=[]); 
-    chart.update(); //
+    chart.update();
   }
-  
-  // Kembalikan ke Mode AUTO secara lokal & kirim perintah ke Firebase
-  setMode('auto'); //
-  renderHistory(); //
+
+  setMode('auto');
+  renderHistory();
   alert("Grafik Lokal Reset. Perintah reset dikirim lewat Cloud Firebase.");
+}
+
+// ==========================================
+// EXPORT RIWAYAT DATA KE EXCEL (.xlsx)
+// ==========================================
+function exportHistoryToExcel(){
+  if (typeof XLSX === 'undefined') {
+    alert('Library export Excel belum termuat. Pastikan koneksi internet aktif lalu coba lagi.');
+    return;
+  }
+  if (history.length === 0) {
+    alert('Belum ada data riwayat untuk diexport.');
+    return;
+  }
+
+  // Export seluruh riwayat yang tersimpan (bukan cuma 8 baris yang tampil di tabel)
+  const rows = history.map(h => ({
+    'Waktu': h.time,
+    'Area': h.area,
+    'ADC': h.adc,
+    'Kelembapan (%)': h.hum,
+    'Status Tanah': h.hum < 30 ? 'Kering' : (h.hum <= 60 ? 'Lembap' : 'Basah'),
+    'Status Valve': h.valve ? 'TERBUKA' : 'TERTUTUP',
+    'Mode': h.mode
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = [ {wch:12}, {wch:10}, {wch:8}, {wch:14}, {wch:14}, {wch:14}, {wch:10} ];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Riwayat Kelembapan');
+
+  const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g, '-');
+  XLSX.writeFile(wb, `riwayat_kelembapan_${stamp}.xlsx`);
 }
 
 // Mengekspos Fungsi ke Global Agar Bisa Dipanggil di index.html
@@ -340,16 +364,17 @@ window.setMode = setMode;
 window.toggleValve = toggleValve;
 window.resetSystem = resetSystem;
 window.renderSidePanel = renderSidePanel;
+window.exportHistoryToExcel = exportHistoryToExcel;
+window.openHistoryModal = openHistoryModal;
+window.closeHistoryModal = closeHistoryModal;
 
 // ==========================================
 // LISTEN DATA DARI FIREBASE SECARA REALTIME
 // ==========================================
-// Mendengarkan Setiap Perubahan Data di Root Firebase ("/")
 onValue(ref(db, '/'), (snapshot) => {
   const data = snapshot.val();
   if (data) {
-    // Masukkan data JSON ke fungsi handler
-    handleRealtimeDataFromFirebase(data); //
+    handleRealtimeDataFromFirebase(data);
   }
 });
 
